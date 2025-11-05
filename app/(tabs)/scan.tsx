@@ -1,0 +1,242 @@
+import fetchProductData from '@/constants/fetchProductData';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { File, Paths } from 'expo-file-system';
+import { useState } from 'react';
+import { Button, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+const DateTimePickerModal: any = (require('react-native-modal-datetime-picker') as any).default || require('react-native-modal-datetime-picker');
+
+export default function Scan() {
+  //const [facing, setFacing] = useState<CameraType>('back');
+  const [permission, requestPermission] = useCameraPermissions();
+  //const [scannedData, setScannedData] = useState({type: '', data: ''});
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [date, setDate] = useState(new Date())
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [productData, setProductData] = useState<Record<string, any> | null>(null);
+  const [isActive, setIsActive] = useState(true);
+
+
+  
+  if (!permission) {
+    // Camera permissions are still loading.
+    return <View />;
+  }
+  if (!permission.granted) {
+    // Camera permissions are not granted yet.
+    return (
+      <View style={styles.container}>
+        <Text style={styles.message}>We need your permission to show the camera</Text>
+        <Button onPress={requestPermission} title="grant permission" />
+      </View>
+    );
+  }
+
+
+  async function handleBarCodeScanned({ data, type }: { data: string; type: string }) {
+    //setScannedData({'type': type, 'data': data})
+   // data = '4008400402222'
+    if (!isActive) return;
+    console.log('barcode scanned', type, data);
+    
+    try {
+      const productData = await fetchProductData(data);
+      if (productData === null) {
+        console.log('No product data found for barcode:', data);
+        return;
+      } else {
+        setMenuVisible(true)
+        setProductData(productData || null);
+        setIsActive(false);
+        return null;
+      }
+    } catch (error) {
+      console.error(error);
+      }
+
+  };
+
+  
+
+
+  async function saveProduct( ) {
+    try {
+      const file = new File(Paths.document, 'products.json');
+      if (! file.exists) {
+        file.create();
+      }
+      let products: any[] = [];
+      const text = await file.textSync();
+      try {
+        products = text && text !== '' ? JSON.parse(text) : [];
+      } catch {
+        products = [];
+      }
+
+      // compute next id using the max existing id to avoid duplicates when file is unsorted
+      const maxId = products.length > 0 ? Math.max(...products.map(p => (typeof p.id === 'number' ? p.id : -1))) : -1;
+      const nextId = maxId + 1;
+
+      const newProduct = {
+        id: nextId,
+        productData: productData,
+        expirationDate: date.toISOString().split('T')[0], // YYYY-MM-DD
+      };
+
+      products.push(newProduct);
+      await file.write(JSON.stringify(products, null, 2));
+
+    } catch (error) {
+      console.error(error);
+    };
+  };
+
+  function pressScan() {
+    setIsActive(true);
+  };
+
+  return (
+    <View style={styles.container}>
+        <CameraView
+         style={{ flex: 1 }}
+         facing='back'
+         barcodeScannerSettings={{
+           barcodeTypes: ['ean13']
+        }}
+        onBarcodeScanned={handleBarCodeScanned}
+        >
+          <View style={styles.overlayContainer}>
+            <View style={styles.overlayTop} />
+            <View style={styles.overlayMiddle}>
+              <View style={styles.overlaySide} />
+              <View style={styles.scanBox} />
+              <View style={styles.overlaySide} />
+            </View>
+            <View style={styles.overlayBottom} />
+          </View>
+        </CameraView>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.button} onPress={pressScan}>
+          <Text style={styles.text}>Scan</Text>
+        </TouchableOpacity>
+        <Modal
+        visible={menuVisible}
+        animationType="slide" // or "fade"
+        transparent={true}
+        >
+        <TouchableOpacity 
+          style={styles.overlay} 
+          activeOpacity={1} 
+          onPressOut={() => setMenuVisible(false)}
+        >
+          <View style={styles.menu}>
+            <Text style={styles.menuText}>Menu Content</Text>
+            <Text style={{fontSize: 16, marginBottom: 20}}>Product Name: {productData?.product_name || 'not defined'}</Text>
+            <Text style={{fontSize: 16, marginBottom: 20}}>Weight: {productData?.quantity || 'not defined'}</Text>
+            <TouchableOpacity style={styles.menuButton} onPress={() => setDatePickerVisibility(true)}>
+              <Text style={{color: 'white', textAlign:'center',fontWeight:'bold',fontSize:20}}>Select Expiration Date</Text>
+            </TouchableOpacity>
+            <DateTimePickerModal
+              isVisible={isDatePickerVisible}
+              mode="date"
+              date={date}
+              onConfirm={(selectedDate: Date) => {
+                setDatePickerVisibility(false);
+                setDate(selectedDate);
+              }}
+              onCancel={() => setDatePickerVisibility(false)}
+            />
+            <View style={{ flex: 1 }} />
+            <Button title="Finish" onPress={async () => { await saveProduct(); setMenuVisible(false); }} />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  message: {
+    textAlign: 'center',
+    paddingBottom: 10,
+  },
+  camera: {
+    flex: 1,
+  },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 64,
+    flexDirection: 'row',
+    backgroundColor: 'transparent',
+    width: '100%',
+    paddingHorizontal: 64,
+  },
+  button: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  text: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)', // dark transparent background
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menu: {
+    width: '80%',
+    height: '70%',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    flexDirection: 'column',
+  },
+  menuText: {
+    fontSize: 20,
+    marginBottom: 20,
+  },
+  menuButton: {
+    fontSize: 16,
+    color: 'white',
+    marginBottom: 20,
+    width: '100%',
+    textAlign: 'center',
+    backgroundColor: '#00e5faff',
+    borderColor: '#00e5faff',
+    padding: 10,
+    borderRadius: 8,
+  },
+    overlayContainer: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  overlayTop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  overlayMiddle: {
+    flexDirection: 'row',
+  },
+  overlaySide: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  scanBox: {
+    width: 300,
+    height: 150,
+    borderWidth: 2,
+    borderColor: '#00E5FA', // bright blue outline
+    borderRadius: 12,
+  },
+  overlayBottom: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+});
