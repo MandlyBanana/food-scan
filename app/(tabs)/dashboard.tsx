@@ -1,11 +1,53 @@
+import { getFile } from '@/constants/fs';
+import { useFocusEffect } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function Dashboard() {
-  const [progress, setProgress] = useState(30); // current progress
+  const [progress, setProgress] = useState(0); // current progress
   const [goal, setGoal] = useState(100); // max value (goal)
   const [inputGoal, setInputGoal] = useState('100');
   const animation = useRef(new Animated.Value(0)).current;
+
+  // Load progress from constants.json on mount
+  useEffect(() => {
+    async function loadConstants() {
+      try {
+        const file = await getFile('constants.json');
+        if (file.exists) {
+          const text = await file.textSync();
+          const constants = JSON.parse(text);
+          setProgress(Number(constants.totalWeight || 0));
+        }
+      } catch (e) {
+        console.warn('Failed to load constants.json', e);
+      }
+    }
+    loadConstants();
+  }, []);
+
+  // Refresh when screen is focused
+  useFocusEffect(
+    useRef(() => {
+      let mounted = true;
+      async function refresh() {
+        try {
+          const file = await getFile('constants.json');
+          if (file.exists) {
+            const text = await file.textSync();
+            const constants = JSON.parse(text);
+            if (mounted) {
+              setProgress(Number(constants.totalWeight || 0));
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to refresh constants.json', e);
+        }
+      }
+      refresh();
+      return () => { mounted = false; };
+    }).current
+  );
 
   const progressRatio = Math.min(progress / goal, 1); // ensure it doesn't exceed 1
 
@@ -28,11 +70,28 @@ export default function Dashboard() {
     outputRange: ['#00ff00', '#ffff00', '#ff0000'], // green → yellow → red
   });
 
-  const handleGoalChange = () => {
+  const handleGoalChange = async () => {
     const newGoal = parseFloat(inputGoal);
     if (!isNaN(newGoal) && newGoal > 0) {
       setGoal(newGoal);
-      //if (progress > newGoal) setProgress(newGoal);
+      // Save goal to constants.json
+      try {
+        const file = await getFile('constants.json');
+        if (!file.exists && file.create) {
+          await file.create();
+        }
+        const text = await file.textSync();
+        let constants: Record<string, any> = {};
+        try {
+          constants = JSON.parse(text);
+        } catch (e) {
+          constants = {};
+        }
+        constants.goal = newGoal;
+        await file.write(JSON.stringify(constants, null, 2));
+      } catch (e) {
+        console.warn('Failed to save goal to constants.json', e);
+      }
     }
   };
 

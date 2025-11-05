@@ -6,6 +6,9 @@ node_modules/
 # production
 app/deprecated/
 
+# Stuff
+.vscode/
+
 # Expo
 .expo/
 dist/

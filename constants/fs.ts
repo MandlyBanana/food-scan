@@ -97,7 +97,7 @@ export default {
  * On web this is a small wrapper around localStorage. On native it returns
  * the real `File` instance from `expo-file-system` (dynamically imported).
  *
- * Usage:
+ * Usage:c
  *   const file = await getFile('products.json');
  *   if (!file.exists) await file.create?.();
  *   const text = await file.textSync();

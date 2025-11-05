@@ -1,6 +1,6 @@
 import fetchProductData from '@/constants/fetchProductData';
+import { getFile } from '@/constants/fs';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { File, Paths } from 'expo-file-system';
 import { useState } from 'react';
 import { Button, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 const DateTimePickerModal: any = (require('react-native-modal-datetime-picker') as any).default || require('react-native-modal-datetime-picker');
@@ -60,15 +60,15 @@ export default function Scan() {
 
   async function saveProduct( ) {
     try {
-      const file = new File(Paths.document, 'products.json');
-      if (! file.exists) {
-        file.create();
+      const file = await getFile('products.json');
+      if (!file.exists && file.create) {
+        await file.create();
       }
       let products: any[] = [];
       const text = await file.textSync();
       try {
         products = text && text !== '' ? JSON.parse(text) : [];
-      } catch {
+      } catch (e) {
         products = [];
       }
 
@@ -84,6 +84,27 @@ export default function Scan() {
 
       products.push(newProduct);
       await file.write(JSON.stringify(products, null, 2));
+
+      // Update constants.json with new weight
+      try {
+        const constFile = await getFile('constants.json');
+        if (!constFile.exists && constFile.create) {
+          await constFile.create();
+        }
+        const constText = await constFile.textSync();
+        let constants: Record<string, any> = {};
+        try { 
+          constants = constText && constText !== '' ? JSON.parse(constText) : {};
+        } catch {
+          constants = {};
+        }
+        const currentWeight = Number(constants.totalWeight || 0);
+        const addWeight = Number(productData?.quantity || 0);
+        constants.totalWeight = currentWeight + addWeight;
+        await constFile.write(JSON.stringify(constants, null, 2));
+      } catch (e) {
+        console.warn('Failed to update constants.json', e);
+      }
 
     } catch (error) {
       console.error(error);

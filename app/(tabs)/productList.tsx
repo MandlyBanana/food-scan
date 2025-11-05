@@ -1,5 +1,5 @@
+import { getFile } from '@/constants/fs';
 import getQuantity from '@/constants/getQuantity';
-import { File, Paths } from 'expo-file-system';
 import { useFocusEffect } from 'expo-router'; // to refresh when screen is focused
 import { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -27,15 +27,11 @@ export default function HomeScreen() {
 
   async function refresh() {
     try {
-      const file = new File(Paths.document, 'products.json');
-      if (file.exists) {
-        const text = await file.textSync();
-        if (text && text !== '') {
-          const parsed = JSON.parse(text);
-          setProducts(Array.isArray(parsed) ? parsed : []);
-        } else {
-          setProducts([]);
-        }
+      const file = await getFile('products.json');
+      const text = await file.textSync();
+      if (text && text !== '') {
+        const parsed = JSON.parse(text);
+        setProducts(Array.isArray(parsed) ? parsed : []);
       } else {
         setProducts([]);
       }
@@ -47,7 +43,7 @@ export default function HomeScreen() {
 
   async function deleteEntry(id: number) {
     try {
-      const file = new File(Paths.document, 'products.json');
+      const file = await getFile('products.json');
       if (!file.exists) return;
 
       const text = await file.textSync();
@@ -62,15 +58,20 @@ export default function HomeScreen() {
       await file.write(JSON.stringify(updated, null, 2));
       setProducts(updated);
 
-      const file2 = new File(Paths.document, 'constants.json');
-      if (file2.exists) {
-        const text2 = await file2.textSync();
+      const constFile = await getFile('constants.json');
+      if (constFile.exists) {
+        const text2 = await constFile.textSync();
         let constants: Record<string, any> = {};
-        constants = JSON.parse(text2);
+        try {
+          constants = JSON.parse(text2);
+        } catch (e) {
+          constants = {};
+        }
         console.log('constants before deletion:', constants);
-        constants.totalWeight = constants.totalWeight + getQuantity(parsed.find((p) => p.id === id)?.productData._id)
-        console.log(getQuantity(parsed.find((p) => p.id === id)?.productData._id))
-        file2.write(JSON.stringify(constants, null, 2));
+        const removedProduct = parsed.find((p) => p.id === id);
+        const removeWeight = Number(getQuantity(removedProduct?.productData._id) || 0);
+        constants.totalWeight = Number(constants.totalWeight || 0) + removeWeight;
+        await constFile.write(JSON.stringify(constants, null, 2));
         console.log('constants after deletion:', constants);
       }
 
