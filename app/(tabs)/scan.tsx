@@ -33,25 +33,35 @@ export default function Scan() {
 
 
   async function handleBarCodeScanned({ data, type }: { data: string; type: string }) {
-    //setScannedData({'type': type, 'data': data})
-   // data = '4008400402222'
-    if (!isActive) return;
-    console.log('barcode scanned', type, data);
+    if (!isActive) {
+      console.log('Scan ignored - not active');
+      return;
+    }
+    
+    console.log('Barcode scanned:', { type, data });
     
     try {
-      const productData = await fetchProductData(data);
-      if (productData === null) {
+      // For testing, uncomment this line to use a test barcode
+      // data = '4008400402222';
+      
+      const product = await fetchProductData(data);
+      console.log('API response:', { product });
+      
+      if (!product) {
         console.log('No product data found for barcode:', data);
+        // Optionally show an error message to the user here
         return;
-      } else {
-        setMenuVisible(true)
-        setProductData(productData || null);
-        setIsActive(false);
-        return null;
       }
+      
+      // Product found, show popup
+      setProductData(product);
+      setMenuVisible(true);
+      setIsActive(false);
+      
     } catch (error) {
-      console.error(error);
-      }
+      console.error('Error scanning:', error);
+      // Optionally show an error message to the user here
+    }
 
   };
 
@@ -86,25 +96,25 @@ export default function Scan() {
       await file.write(JSON.stringify(products, null, 2));
 
       // Update constants.json with new weight
-      try {
-        const constFile = await getFile('constants.json');
-        if (!constFile.exists && constFile.create) {
-          await constFile.create();
-        }
-        const constText = await constFile.textSync();
-        let constants: Record<string, any> = {};
-        try { 
-          constants = constText && constText !== '' ? JSON.parse(constText) : {};
-        } catch {
-          constants = {};
-        }
-        const currentWeight = Number(constants.totalWeight || 0);
-        const addWeight = Number(productData?.quantity || 0);
-        constants.totalWeight = currentWeight + addWeight;
-        await constFile.write(JSON.stringify(constants, null, 2));
-      } catch (e) {
-        console.warn('Failed to update constants.json', e);
-      }
+      //try {
+      //  const constFile = await getFile('constants.json');
+      //  if (!constFile.exists && constFile.create) {
+      //    await constFile.create();
+      //  }
+      //  const constText = await constFile.textSync();
+      //  let constants: Record<string, any> = {};
+      //  try { 
+      //    constants = constText && constText !== '' ? JSON.parse(constText) : {};
+      //  } catch {
+      //    constants = {};
+      //  }
+      //  const currentWeight = Number(constants.totalWeight || 0);
+      //  const addWeight = Number(productData?.quantity || 0);
+      //  constants.totalWeight = currentWeight + addWeight;
+      //  await constFile.write(JSON.stringify(constants, null, 2));
+      //} catch (e) {
+      //  console.warn('Failed to update constants.json', e);
+      //}
 
     } catch (error) {
       console.error(error);
