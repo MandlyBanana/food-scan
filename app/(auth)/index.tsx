@@ -1,26 +1,24 @@
-import { File, Paths } from 'expo-file-system';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { default as Theme } from '../../constants/theme';
 
 export default function Login() {
   const router = useRouter();
 
-  useEffect(() => {
-    async function setupFile() {
-      const file2 = new File(Paths.document, 'constants.json');
-      //const exists = await file2.existsAsync(); // check asynchronously
-      if (!file2.exists) {
-        await file2.create();
-        const initialConstants = { 
-          totalWeight: 0 
-        };
-        await file2.write(JSON.stringify(initialConstants, null, 2));
-      }
-    }
-    setupFile();
-  }, []); // empty dependency array → runs only once on mount
+  //useEffect(() => {
+  //  async function setupFile() {
+  //    const file2 = new File(Paths.document, 'constants.json');
+  //    //const exists = await file2.existsAsync(); // check asynchronously
+  //    if (!file2.exists) {
+  //      await file2.create();
+  //      const initialConstants = { 
+  //        totalWeight: 0 
+  //      };
+  //      await file2.write(JSON.stringify(initialConstants, null, 2));
+  //    }
+  //  }
+  //  setupFile();
+  //}, []); // empty dependency array → runs only once on mount
   
   return (
     <View style={styles.container}>
