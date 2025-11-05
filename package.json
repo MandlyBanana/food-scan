@@ -1,8 +1,15 @@
+"scripts": {
+  "web:build": "expo export --platform web",
+  "start": "expo start"
+}
+
+
 {
   "name": "madspilds-app",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
+    "web:build": "expo export --platform web",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
